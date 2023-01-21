@@ -67,7 +67,13 @@ router.post("/", async (req, res) => {
 });
 
 // update product
-router.put("/:id", (req, res) => {
+router.put("/:id", async (req, res) => {
+  const product = await Product.findOne({ where: { id: req.params.id } });
+  if (!product) {
+    res.status(404).json({ message: "No product with that id exists" });
+    return;
+  }
+
   // update product data
   Product.update(req.body, {
     where: {
@@ -120,7 +126,7 @@ router.delete("/:id", async (req, res) => {
       return;
     }
 
-    res.status(200).json(productData);
+    res.status(200).json({ message: `Product: ${req.params.id} was deleted!` });
   } catch (err) {
     res.status(500).json(err);
   }

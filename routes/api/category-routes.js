@@ -64,9 +64,7 @@ router.put("/:id", async (req, res) => {
       return;
     }
 
-    res
-      .status(200)
-      .json({ message: `Category: ${req.body.category_name} Updated!` });
+    res.status(200).json({ message: `Category: ${req.params.id} Updated!` });
   } catch (err) {
     res.status(500).json(err);
   }
@@ -84,9 +82,7 @@ router.delete("/:id", async (req, res) => {
       return;
     }
 
-    res
-      .status(200)
-      .json({ message: `Product ${req.body.category_name} was deleted` });
+    res.status(200).json({ message: `Category ${req.params.id} was deleted` });
   } catch (err) {
     res.status(500).json(err);
   }

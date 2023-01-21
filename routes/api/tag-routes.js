@@ -36,42 +36,6 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// router.post("/", async (req, res) => {
-//   // create a new tag
-//   try {
-//     const tagData =  await Tag.create(req.body);
-
-//     res.status(200).json(tagData);
-//   } catch (err) {
-//     res.status(500).json(err);
-//   }
-// });
-
-// router.post("/", async (req, res) => {
-//   // create a new tag
-//   try {
-//     const tagDataFunction = async () => {
-//       const tagData = await Tag.create(req.body);
-
-//       if (req.body.productIds.length) {
-//         const productTagIdArr = req.body.productIds.map((product_id) => {
-//           return {
-//             product_id,
-//             tag_id: tagData.id,
-//           };
-//         });
-//         await ProductTag.bulkCreate(productTagIdArr);
-//         res.status(200).json(productTagIdArr);
-//       }
-//       res.status(200).json(tagData);
-//     };
-
-//     tagDataFunction();
-//   } catch (err) {
-//     res.status(500).json(err);
-//   }
-// });
-
 router.post("/", (req, res) => {
   Tag.create(req.body)
     .then((tag) => {
@@ -93,12 +57,83 @@ router.post("/", (req, res) => {
     });
 });
 
-router.put("/:id", (req, res) => {
+router.put("/:id", async (req, res) => {
   // update a tag's name by its `id` value
+  try {
+    const tagData = await Tag.update(req.body, {
+      where: { id: req.params.id },
+    });
+
+    if (!tagData) {
+      res.status(404).json({ message: "No tag with that id found" });
+      return;
+    }
+
+    const productTags = await ProductTag.findAll({
+      where: { tag_id: req.params.id },
+    });
+
+    const productTagIds = productTags.map(({ product_id }) => product_id);
+
+    const newProductTags = req.body.productIds
+      .filter((product_id) => !productTagIds.includes(product_id))
+      .map((product_id) => {
+        return {
+          product_id,
+          tag_id: req.params.id,
+        };
+      });
+
+    // ****
+    console.log(productTags);
+    // ****
+
+    const productTagsToRemove = productTags
+      .filter(({ product_id }) => !req.body.productIds.includes(product_id))
+      .map(({ id }) => id);
+
+    const destroyTag = async () => {
+      return ProductTag.destroy({ where: { id: productTagsToRemove } });
+    };
+
+    const createTags = async () => {
+      return ProductTag.bulkCreate(newProductTags);
+    };
+
+    const promiseExecution = async () => {
+      const runPromises = await Promise.all([destroyTag(), createTags]);
+    };
+
+    const updatedProductTags = promiseExecution();
+
+    res
+      .status(200)
+      .json({ message: `Tag ${req.body.tag_name} successfully updated!` });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json(err);
+  }
 });
 
-router.delete("/:id", (req, res) => {
+router.delete("/:id", async (req, res) => {
   // delete on tag by its `id` value
+  try {
+    const tagData = await Tag.destroy({
+      where: { id: req.params.id },
+    });
+
+    if (!tagData) {
+      res.status(404).json({ message: "No tag with that id found" });
+      return;
+    }
+
+    res
+      .status(200)
+      .json({ message: `Tag ${req.params.id} successfully deleted!` });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json(err);
+  }
 });
 
 module.exports = router;

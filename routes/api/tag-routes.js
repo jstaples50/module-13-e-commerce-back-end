@@ -36,47 +36,80 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.post("/", (req, res) => {
-  Tag.create(req.body)
-    .then((tag) => {
-      if (req.body.productIds.length) {
-        const productTagIdArr = req.body.productIds.map((product_id) => {
-          return {
-            product_id,
-            tag_id: tag.id,
-          };
-        });
-        return ProductTag.bulkCreate(productTagIdArr);
-      }
-      res.status(200).json(tag);
-    })
-    .then((productTagIds) => res.status(200).json(productTagIds))
-    .catch((err) => {
-      console.log(err);
-      res.status(500).json(err);
+// router.post("/", (req, res) => {
+//   Tag.create(req.body)
+//     .then((tag) => {
+//       if (req.body.productIds.length) {
+//         const productTagIdArr = req.body.productIds.map((product_id) => {
+//           return {
+//             product_id,
+//             tag_id: tag.id,
+//           };
+//         });
+//         return ProductTag.bulkCreate(productTagIdArr);
+//       }
+//       res.status(200).json(tag);
+//     })
+//     .then((productTagIds) => res.status(200).json(productTagIds))
+//     .catch((err) => {
+//       console.log(err);
+//       res.status(500).json(err);
+//     });
+// });
+
+router.post("/", async (req, res) => {
+  try {
+    const { productIds } = req.body;
+    await Tag.create(req.body);
+
+    const tag = await Tag.findOne({ where: { tag_name: req.body.tag_name } });
+
+    if (productIds.length) {
+      const tagIds = productIds.map((product_id) => {
+        return {
+          product_id,
+          tag_id: tag.id,
+        };
+      });
+      await ProductTag.bulkCreate(tagIds);
+    }
+
+    const postBulkCreate = await Tag.findOne({
+      where: { tag_name: req.body.tag_name },
     });
+
+    res.json(postBulkCreate);
+  } catch (error) {
+    res.status(400).json(error);
+  }
 });
 
 router.put("/:id", async (req, res) => {
   // update a tag's name by its `id` value
   try {
+    const tag = await Tag.findOne({ where: { id: req.params.id } });
+    if (!tag) {
+      res.status(404).json({ message: "No tag with that id exists" });
+      return;
+    }
+
     const tagData = await Tag.update(req.body, {
       where: { id: req.params.id },
     });
 
-    if (!tagData) {
-      res.status(404).json({ message: "No tag with that id found" });
+    if (!req.body.productIds) {
+      res.status(200).json(tagData);
       return;
     }
 
-    const productTags = await ProductTag.findAll({
+    const currentProductTags = await ProductTag.findAll({
       where: { tag_id: req.params.id },
+      attributes: ["product_id"],
+      raw: true,
     });
 
-    const productTagIds = productTags.map(({ product_id }) => product_id);
-
     const newProductTags = req.body.productIds
-      .filter((product_id) => !productTagIds.includes(product_id))
+      .filter((product_id) => !currentProductTags.includes(product_id))
       .map((product_id) => {
         return {
           product_id,
@@ -84,27 +117,19 @@ router.put("/:id", async (req, res) => {
         };
       });
 
-    // ****
-    console.log(productTags);
-    // ****
-
-    const productTagsToRemove = productTags
+    const productTagsToRemove = currentProductTags
       .filter(({ product_id }) => !req.body.productIds.includes(product_id))
-      .map(({ id }) => id);
+      .map(({ product_id }) => product_id);
 
-    const destroyTag = async () => {
-      return ProductTag.destroy({ where: { id: productTagsToRemove } });
-    };
+    console.log(productTagsToRemove);
 
-    const createTags = async () => {
-      return ProductTag.bulkCreate(newProductTags);
-    };
+    for (const product_id of productTagsToRemove) {
+      await ProductTag.destroy({
+        where: { product_id: product_id, tag_id: req.params.id },
+      });
+    }
 
-    const promiseExecution = async () => {
-      const runPromises = await Promise.all([destroyTag(), createTags]);
-    };
-
-    const updatedProductTags = promiseExecution();
+    await ProductTag.bulkCreate(newProductTags);
 
     res
       .status(200)

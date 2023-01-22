@@ -13,7 +13,9 @@ Concepts applied to this project include:
 - Setting up a working express server
 - Creating a RESTful working api
 
-_Link to Walkthrough video:_ [Walkthrough Video]()
+_Link to Walkthrough video:_ [Walkthrough Video](https://drive.google.com/file/d/1kaau6TP0U9d2U8jwusW_d1F3fS0d2YS-/view)
+
+_Link to github repo:_ [e-commerce-back-end](https://github.com/jstaples50/module-13-e-commerce-back-end)
 
 ## Table of Contents
 
